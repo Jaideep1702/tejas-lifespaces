@@ -229,13 +229,19 @@
     return true;
   }
 
+  const GRID_LIMIT = 8;
+  let showAll = false;
+  let legacyHits = [];
+  const filtering = () => !!(filters.status || filters.city || filters.config || filters.q);
+
   function renderExplorer() {
     const order = { ongoing: 0, upcoming: 1, completed: 2 };
     const hits = P.filter(matches).sort((a, b) => order[a.status] - order[b.status]);
     const withImg = hits.filter((p) => p.cover);
-    const legacy = hits.filter((p) => !p.cover);
+    legacyHits = hits.filter((p) => !p.cover);
+    const shown = showAll || filtering() ? withImg : withImg.slice(0, GRID_LIMIT);
 
-    $("#grid").innerHTML = withImg.map((p, i) => `
+    $("#grid").innerHTML = shown.map((p, i) => `
       <article class="card" data-open="${p.id}" style="animation-delay:${Math.min(i, 10) * 40}ms" tabindex="0">
         <span class="status status--${p.status}">${statusLabel[p.status]}</span>
         <button class="heart ${shortlist.includes(p.id) ? "is-on" : ""}" data-heart="${p.id}" aria-label="Shortlist ${esc(p.name)}">${heartSVG}</button>
@@ -247,13 +253,24 @@
         </div>
       </article>`).join("");
 
-    $("#legacy").innerHTML = legacy.map((p, i) => `
-      <div class="legacy__item" style="animation-delay:${Math.min(i, 20) * 20}ms"><b>${esc(p.name)}</b><span>${esc(where(p))}</span></div>`).join("");
-    $("#legacyWrap").hidden = !legacy.length;
-    $("#legacyCount").textContent = legacy.length ? `· ${legacy.length}` : "";
+    const more = $("#showAll");
+    more.hidden = shown.length === withImg.length;
+    more.textContent = `Show all ${withImg.length} projects`;
+
+    // Heritage projects have no photos, so they live on the skyline rather than in the grid
+    const n = legacyHits.length;
+    $("#legacyHint").hidden = !n;
+    $("#legacyHintText").innerHTML = filtering()
+      ? `<b>${n}</b> more delivered project${n === 1 ? "" : "s"} match${n === 1 ? "es" : ""} on our legacy skyline`
+      : `<b>+${n}</b> more delivered heritage projects across Navi Mumbai &amp; Panvel`;
     $("#empty").hidden = hits.length > 0;
     $("#resultCount").textContent = `${hits.length} project${hits.length === 1 ? "" : "s"}`;
   }
+  $("#showAll").addEventListener("click", () => { showAll = true; renderExplorer(); });
+  $("#legacyHint").addEventListener("click", () => {
+    skyline.highlight(filtering() ? legacyHits.map((p) => p.id) : null, filtering() ? "Matching your search" : null);
+    $("#legacy").scrollIntoView({ behavior: "smooth" });
+  });
 
   function setStatus(s) {
     filters.status = s;
@@ -288,6 +305,206 @@
   });
 
   renderExplorer();
+
+  /* ═══════════════ Legacy skyline ═══════════════
+   * Every delivered project is drawn as a building. Shapes are generated from the
+   * project id, so they stay the same on every visit. Signature projects (the ones
+   * with photos) are taller and lit gold; heritage projects are the low-rise blocks.
+   */
+  const skyline = (() => {
+    const hash = (s) => [...s].reduce((h, c) => Math.imul(h ^ c.charCodeAt(0), 16777619), 2166136261);
+    const rng = (seed) => () => {
+      seed = (seed + 0x6d2b79f5) | 0;
+      let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+
+    const delivered = P.filter((p) => p.status === "completed");
+    // Districts run roughly north → south; localities not listed here go at the end
+    const ORDER = ["Kharghar", "Kamothe", "Navade", "Kalundre", "Vichumbe", "Adai Village", "Ulwe", "Dronagiri"];
+    const rank = (l) => (ORDER.includes(l) ? ORDER.indexOf(l) : ORDER.length);
+    const districts = [...new Set(delivered.map((p) => p.locality))]
+      .sort((a, b) => rank(a) - rank(b))
+      .map((loc) => {
+        const all = delivered.filter((p) => p.locality === loc);
+        const sig = all.filter((p) => p.tier === "signature");
+        const her = all.filter((p) => p.tier !== "signature");
+        const half = Math.ceil(her.length / 2);
+        return { loc, items: [...her.slice(0, half), ...sig, ...her.slice(half)] }; // towers in the middle
+      });
+    const flat = districts.flatMap((d) => d.items);
+
+    function tower(p, i) {
+      const r = rng(hash(p.id));
+      const sig = p.tier === "signature";
+      const cols = sig ? 4 + (r() < 0.5) : 2 + (r() < 0.6);
+      const floors = sig ? 10 + Math.floor(r() * 6) : 4 + Math.floor(r() * 5);
+      const W = cols * 6 + 5, TOP = 14, H = TOP + floors * 10 + 12;
+      let s = `<rect class="t-body" x="0" y="${TOP}" width="${W}" height="${H - TOP}"/>`;
+      for (let f = 0; f < floors; f++) {
+        for (let c = 0; c < cols; c++) {
+          const lit = r() < (sig ? 0.72 : 0.5);
+          s += `<rect class="${lit ? "t-lit" : "t-dark"}" x="${4 + c * 6}" y="${TOP + 3 + f * 10}" width="3" height="5"${lit ? ` opacity="${(0.5 + r() * 0.5).toFixed(2)}"` : ""}/>`;
+        }
+      }
+      s += `<rect class="t-base" x="0" y="${H - 12}" width="${W}" height="12"/><rect class="t-door" x="${W / 2 - 3}" y="${H - 9}" width="6" height="9"/>`;
+      const roof = sig ? 4 : Math.floor(r() * 4);
+      if (roof === 0) s += `<rect class="t-roof" x="-1" y="${TOP - 3}" width="${W + 2}" height="3"/>`;
+      if (roof === 1) s += `<rect class="t-roof" x="${3 + Math.floor(r() * (W - 14))}" y="${TOP - 8}" width="8" height="8"/>`;
+      if (roof === 2) s += `<rect class="t-roof" x="3" y="${TOP - 7}" width="${W - 6}" height="7"/>`;
+      if (roof === 3) s += `<rect class="t-roof" x="0" y="${TOP - 2}" width="${W}" height="2"/><path class="t-mast" d="M${W - 6} ${TOP - 2}V1"/>`;
+      if (roof === 4) s += `<rect class="t-roof" x="2" y="${TOP - 6}" width="${W - 4}" height="6"/><rect class="t-crown" x="2" y="${TOP - 7}" width="${W - 4}" height="1.5"/><path class="t-mast" d="M${W / 2} ${TOP - 7}V0"/>`;
+      return `<button class="bldg${sig ? " bldg--sig" : ""}" data-sky="${p.id}" style="--d:${i}" tabindex="${i ? -1 : 0}" aria-label="${esc(p.name)}, ${esc(where(p))}">
+        <svg viewBox="0 -1 ${W} ${H + 1}" width="${W}" height="${H + 1}" aria-hidden="true">${s}</svg></button>`;
+    }
+
+    let k = 0;
+    $("#skyTrack").innerHTML = districts.map((d) => `
+      <div class="district" data-district="${esc(d.loc)}">
+        <div class="district__row">${d.items.map((p) => tower(p, k++)).join("")}</div>
+        <div class="district__label">${esc(d.loc)} <b>${d.items.length}</b></div>
+      </div>`).join("");
+
+    // Faint far-off city behind the interactive one, so wide screens don't look empty at the edges
+    const back = rng(7);
+    let x = 0, bs = "";
+    while (x < 2400) { const w = 18 + back() * 40, h = 30 + back() * 120; bs += `<rect x="${x.toFixed(0)}" y="${(170 - h).toFixed(0)}" width="${w.toFixed(0)}" height="${h.toFixed(0)}"/>`; x += w + 2 + back() * 8; }
+    $("#skyBack").setAttribute("viewBox", "0 0 2400 170");
+    $("#skyBack").innerHTML = bs;
+
+    $("#skyTotal").textContent = delivered.length;
+    $("#skyChips").innerHTML =
+      `<button class="is-on" data-sky-loc="">All <b>${delivered.length}</b></button>` +
+      [...districts].sort((a, b) => b.items.length - a.items.length)
+        .map((d) => `<button data-sky-loc="${esc(d.loc)}">${esc(d.loc)} <b>${d.items.length}</b></button>`).join("");
+
+    const root = $("#skyline"), plaque = $("#skyPlaque");
+    let selected = null, focus = null, focusLabel = "";
+
+    function paint() {
+      $$(".bldg", root).forEach((b) => {
+        b.classList.toggle("is-on", b.dataset.sky === selected);
+        b.classList.toggle("is-hl", !!focus && focus.has(b.dataset.sky));
+      });
+      root.classList.toggle("has-focus", !!focus);
+      const chipLoc = focus && districts.find((d) => d.loc === focusLabel) ? focusLabel : focus ? null : "";
+      $$("#skyChips button").forEach((c) => c.classList.toggle("is-on", c.dataset.skyLoc === chipLoc));
+    }
+
+    function showPlaque(id) {
+      const p = id && byId(id);
+      let html;
+      if (p) {
+        const sig = p.tier === "signature";
+        html = `
+          <div class="plaque plaque--item">
+            ${sig ? `<img src="${esc(p.cover)}" alt="" />` : `<span class="plaque__mono">${esc(p.name.replace(/^Tejas\s+/, "")[0])}</span>`}
+            <div class="plaque__text">
+              <small>${sig ? "Signature" : "Heritage"} · Delivered</small>
+              <b>${esc(p.name)}</b>
+              <span>${esc(where(p))}</span>
+            </div>
+            <div class="plaque__ctas">
+              ${sig
+                ? `<button class="btn btn--gold btn--sm" data-open="${p.id}">View project</button>`
+                : `<button class="btn btn--gold btn--sm" data-lead="Details for homes near ${esc(p.name)}, ${esc(p.locality)}" data-project="">Homes in ${esc(p.locality)}?</button>
+                   <button class="btn btn--ghost btn--sm" data-open="${p.id}">Area map</button>`}
+            </div>
+          </div>`;
+      } else if (focus) {
+        const list = flat.filter((q) => focus.has(q.id));
+        html = `
+          <div class="plaque plaque--group">
+            <div class="plaque__text"><small>${esc(focusLabel || "Selection")}</small><b>${list.length} delivered project${list.length === 1 ? "" : "s"}</b></div>
+            <div class="plaque__names">${list.map((q) => `<button data-sky-pick="${q.id}" class="${q.tier === "signature" ? "is-sig" : ""}">${esc(q.name)}</button>`).join("")}</div>
+          </div>`;
+      } else {
+        const locs = districts.length;
+        html = `
+          <div class="plaque plaque--intro">
+            <div class="plaque__stat"><b>${delivered.length}</b><span>projects handed over</span></div>
+            <div class="plaque__stat"><b>${locs}</b><span>localities</span></div>
+            <div class="plaque__stat"><b>${delivered.filter((p) => p.tier === "signature").length}</b><span>signature towers</span></div>
+            <p class="plaque__hint"><i></i>Tap a building to see its name</p>
+          </div>`;
+      }
+      plaque.innerHTML = html;
+    }
+
+    function select(id) {
+      selected = selected === id ? null : id;
+      paint();
+      showPlaque(selected);
+    }
+    function highlight(ids, label) {
+      focus = ids && ids.length ? new Set(ids) : null;
+      focusLabel = label || "";
+      selected = null;
+      paint();
+      showPlaque(null);
+    }
+
+    $("#skyTrack").addEventListener("click", (e) => {
+      const b = e.target.closest(".bldg");
+      if (b) select(b.dataset.sky);
+    });
+    // Desktop: preview on hover, fall back to the selection when the pointer leaves
+    if (matchMedia("(hover: hover)").matches) {
+      $("#skyTrack").addEventListener("mouseover", (e) => { const b = e.target.closest(".bldg"); if (b) showPlaque(b.dataset.sky); });
+      $("#skyTrack").addEventListener("mouseleave", () => showPlaque(selected));
+    }
+    // Roving focus: one tab stop for the whole skyline, arrow keys move between buildings
+    $("#skyTrack").addEventListener("keydown", (e) => {
+      if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
+      const all = $$(".bldg", root);
+      const i = all.indexOf(document.activeElement);
+      if (i < 0) return;
+      e.preventDefault();
+      const j = e.key === "Home" ? 0 : e.key === "End" ? all.length - 1 : Math.max(0, Math.min(all.length - 1, i + (e.key === "ArrowRight" ? 1 : -1)));
+      all[i].tabIndex = -1;
+      all[j].tabIndex = 0;
+      all[j].focus();
+      all[j].scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
+      showPlaque(all[j].dataset.sky);
+    });
+    $("#skyChips").addEventListener("click", (e) => {
+      const c = e.target.closest("[data-sky-loc]");
+      if (!c) return;
+      const loc = c.dataset.skyLoc;
+      highlight(loc ? delivered.filter((p) => p.locality === loc).map((p) => p.id) : null, loc);
+      if (loc) {
+        const d = $(`.district[data-district="${CSS.escape(loc)}"]`, root);
+        const sc = $("#skyScroll");
+        if (sc.scrollWidth > sc.clientWidth) sc.scrollTo({ left: d.offsetLeft - (sc.clientWidth - d.offsetWidth) / 2, behavior: "smooth" });
+      }
+    });
+    plaque.addEventListener("click", (e) => {
+      const n = e.target.closest("[data-sky-pick]");
+      if (n) { selected = n.dataset.skyPick; paint(); showPlaque(selected); }
+    });
+
+    // Tablets and small laptops: shrink the skyline to fit. Phones: keep full size and swipe.
+    function fit() {
+      const sc = $("#skyScroll"), tr = $("#skyTrack");
+      tr.style.zoom = "";
+      const ratio = sc.clientWidth / tr.scrollWidth;
+      const z = ratio < 1 && innerWidth > 680 ? Math.max(ratio, 0.7) : 1;
+      tr.style.zoom = z === 1 ? "" : z;
+      root.style.setProperty("--ground", 46 * z + "px");
+      root.classList.toggle("is-scrollable", sc.scrollWidth > sc.clientWidth + 2);
+    }
+    addEventListener("resize", fit);
+    fit();
+
+    // Buildings rise into place the first time the skyline scrolls into view
+    new IntersectionObserver(([e], obs) => {
+      if (e.isIntersecting) { root.classList.add("is-up"); obs.disconnect(); }
+    }, { threshold: 0.25 }).observe(root);
+
+    showPlaque(null);
+    return { highlight };
+  })();
 
   /* ═══════════════ Layers (modal / drawer / lightbox) ═══════════════ */
   let lastFocus = null;

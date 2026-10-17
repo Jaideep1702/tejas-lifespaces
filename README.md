@@ -27,7 +27,8 @@ To add a project, change a phone number or set a price, edit `js/data.js` only.
 |---|---|
 | Hero "Find homes" search (city, BHK, status) | Visitors jump straight to matching projects |
 | "Now selling" spotlight, auto-rotating, with MahaRERA badge | Ongoing projects are the first thing people see |
-| Project explorer: status tabs, city/BHK filters, live search | Shows all 39 projects, including 35 delivered, as proof of track record |
+| Project explorer: status tabs, city/BHK filters, live search, first 8 cards + "Show all" | Every project with photos, without an endless grid |
+| Legacy skyline: each of the 35 delivered projects drawn as a building, grouped by locality, with filter chips and tap-for-details | Turns the photo-less heritage list into proof of track record; search matches in the explorer light up here |
 | ♥ Shortlist (saved in the browser) + "enquire about these on WhatsApp" | Turns browsing into a single enquiry |
 | Project detail modal: gallery, lightbox (keyboard + swipe), amenities, connectivity, map | Replaces the thin project pages |
 | Shareable project links (`index.html#p/vaishnavi`) + Share button | The sales team can WhatsApp a direct link to one project |

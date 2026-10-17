@@ -46,10 +46,10 @@
       <a href="#home" class="logo" aria-label="Tejas Lifespaces home"><img id="logo" alt="Tejas Lifespaces" /></a>
       <nav class="nav" id="nav">
         <a href="#now-selling">Now Selling</a>
-        <a href="#projects">Projects</a>
         <a href="#location">Location</a>
-        <a href="#emi">EMI</a>
+        <a href="#projects">Projects</a>
         <a href="#about">Our Story</a>
+        <a href="#emi">EMI</a>
         <a href="#contact">Contact</a>
       </nav>
       <div class="header__actions">
@@ -123,8 +123,8 @@
   <section class="section" id="now-selling">
     <div class="wrap">
       <div class="section__head reveal">
-        <p class="eyebrow">Now selling</p>
-        <h2>Homes you can book today</h2>
+        <div><p class="eyebrow">Now selling</p>
+        <h2>Homes you can book today</h2></div>
         <p class="muted">Two MahaRERA-registered projects, both Vastu certified and well connected to the new airport, Atal Setu and the Expressway.</p>
       </div>
 
@@ -135,13 +135,32 @@
     </div>
   </section>
 
+  <!-- ═════════════ LOCATION ═════════════ -->
+  <section class="section section--navy" id="location">
+    <div class="wrap">
+      <div class="section__head reveal">
+        <div><p class="eyebrow">Location advantage</p>
+        <h2>Where you'll be living</h2></div>
+        <p class="muted-light">Pick a project, then tap a landmark to see it on the map and get directions.</p>
+      </div>
+      <div class="seg seg--light reveal" id="locSeg"></div>
+      <div class="loc reveal">
+        <ul class="loc__list" id="locList"></ul>
+        <div class="loc__map">
+          <iframe id="locMap" title="Map" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+          <div class="loc__card" id="locCard"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- ═════════════ PROJECT EXPLORER ═════════════ -->
   <section class="section section--ivory" id="projects">
     <div class="wrap">
       <div class="section__head reveal">
-        <p class="eyebrow">Portfolio</p>
-        <h2>Explore every Tejas address</h2>
-        <p class="muted">Filter by status or locality, tap ♥ to shortlist, and open any project for details.</p>
+        <div><p class="eyebrow">Portfolio</p>
+        <h2>Explore every Tejas address</h2></div>
+        <p class="muted">Filter by status or locality, tap ♥ to shortlist, and open any project for photos, amenities and maps.</p>
       </div>
 
       <div class="explorer__bar reveal">
@@ -165,10 +184,12 @@
       <p class="explorer__count" id="resultCount"></p>
 
       <div class="grid" id="grid"></div>
-      <div class="legacy" id="legacyWrap">
-        <h3>Heritage projects <span class="muted" id="legacyCount"></span></h3>
-        <div class="legacy__list" id="legacy"></div>
-      </div>
+      <div class="more"><button class="btn btn--ghost-dark" id="showAll" hidden></button></div>
+      <button class="legacy-hint" id="legacyHint" hidden>
+        <svg class="legacy-hint__icon" viewBox="0 0 40 24" aria-hidden="true"><path d="M2 23h36M5 23V12h6v11M13 23V4h8v19M23 23V9h6v14M31 23V14h5v9"/></svg>
+        <span id="legacyHintText"></span>
+        <b>See the skyline →</b>
+      </button>
       <div class="empty" id="empty" hidden>
         <p>No projects match those filters.</p>
         <button class="btn btn--ghost-dark" id="resetFilters">Reset filters</button>
@@ -176,27 +197,49 @@
     </div>
   </section>
 
-  <!-- ═════════════ LOCATION ═════════════ -->
-  <section class="section section--navy" id="location">
+  <!-- ═════════════ LEGACY SKYLINE ═════════════ -->
+  <section class="section section--navy legacy" id="legacy">
     <div class="wrap">
       <div class="section__head reveal">
-        <p class="eyebrow">Location advantage</p>
-        <h2>Where you'll be living</h2>
-        <p class="muted-light">Pick a project, then tap a landmark to see it on the map and get directions.</p>
+        <div><p class="eyebrow">Our legacy</p>
+        <h2><span id="skyTotal"></span> addresses. One skyline.</h2></div>
+        <p class="muted-light">Every building here is a Tejas project already handed over to families. Gold-lit towers have photo tours. Hover or tap a building, or pick a locality.</p>
       </div>
-      <div class="seg seg--light reveal" id="locSeg"></div>
-      <div class="loc reveal">
-        <ul class="loc__list" id="locList"></ul>
-        <div class="loc__map">
-          <iframe id="locMap" title="Map" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
-          <div class="loc__card" id="locCard"></div>
-        </div>
+      <div class="sky-chips reveal" id="skyChips" role="toolbar" aria-label="Filter the skyline by locality"></div>
+    </div>
+    <div class="skyline" id="skyline">
+      <div class="wrap"><div class="skyline__plaque" id="skyPlaque" aria-live="polite"></div></div>
+      <div class="skyline__scroll" id="skyScroll">
+        <svg class="skyline__back" id="skyBack" aria-hidden="true" preserveAspectRatio="xMidYMax slice"></svg>
+        <div class="skyline__track" id="skyTrack" role="group" aria-label="Delivered projects"></div>
       </div>
+      <p class="skyline__swipe">← Swipe across the skyline →</p>
     </div>
   </section>
 
+  <!-- ═════════════ ABOUT ═════════════ -->
+  <section class="section" id="about">
+    <div class="wrap about">
+      <figure class="about__photo reveal">
+        <img id="aboutPhoto" alt="The Tejas Lifespaces leadership team" loading="lazy" />
+        <figcaption><b data-years></b>+ years · a family legacy</figcaption>
+      </figure>
+      <div class="about__copy reveal">
+        <p class="eyebrow">Our story</p>
+        <h2 id="aboutHeading"></h2>
+        <p id="aboutIntro"></p>
+        <p class="muted" id="aboutFamily"></p>
+        <div class="pillars">
+          <div class="seg seg--small" id="pillarTabs"></div>
+          <div class="pillars__body" id="pillarBody"></div>
+        </div>
+      </div>
+    </div>
+    <div class="wrap strengths" id="strengths"></div>
+  </section>
+
   <!-- ═════════════ EMI ═════════════ -->
-  <section class="section" id="emi">
+  <section class="section section--ivory" id="emi">
     <div class="wrap emi">
       <div class="emi__copy reveal">
         <p class="eyebrow">Plan your purchase</p>
@@ -238,27 +281,6 @@
         <p class="fine">Estimates only. Actual rates depend on your lender and profile.</p>
       </div>
     </div>
-  </section>
-
-  <!-- ═════════════ ABOUT ═════════════ -->
-  <section class="section section--ivory" id="about">
-    <div class="wrap about">
-      <figure class="about__photo reveal">
-        <img id="aboutPhoto" alt="The Tejas Lifespaces leadership team" loading="lazy" />
-        <figcaption><b data-years></b>+ years · a family legacy</figcaption>
-      </figure>
-      <div class="about__copy reveal">
-        <p class="eyebrow">Our story</p>
-        <h2 id="aboutHeading"></h2>
-        <p id="aboutIntro"></p>
-        <p class="muted" id="aboutFamily"></p>
-        <div class="pillars">
-          <div class="seg seg--small" id="pillarTabs"></div>
-          <div class="pillars__body" id="pillarBody"></div>
-        </div>
-      </div>
-    </div>
-    <div class="wrap strengths" id="strengths"></div>
   </section>
 
   <!-- ═════════════ BOOK A VISIT ═════════════ -->
