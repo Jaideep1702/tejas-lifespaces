@@ -1,0 +1,3 @@
+User-agent: *
+Disallow: /
+# PREVIEW build: delete this file when this becomes the live site
